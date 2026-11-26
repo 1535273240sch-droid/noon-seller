@@ -12,7 +12,7 @@ jobs:
         env:
           POSTGRES_PASSWORD: ci-only-postgres
         ports: ['5432:5432']
-        options: --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 15
+        options: --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 15
       redis:
         image: redis:7-alpine
         ports: ['6379:6379']
@@ -58,10 +58,11 @@ jobs:
       - name: Restore backup into a fresh database
         env:
           PGPASSWORD: ci-only-postgres
+          DB_CONTAINER: ${{ job.services.postgres.id }}
         run: |
-          pg_dump -h 127.0.0.1 -U postgres -Fc noon_test -f "$RUNNER_TEMP/seller.dump"
+          docker exec "$DB_CONTAINER" pg_dump -U postgres -Fc noon_test > "$RUNNER_TEMP/seller.dump"
           createdb -h 127.0.0.1 -U postgres -O noon_ci noon_restored
-          pg_restore --exit-on-error -h 127.0.0.1 -U postgres -d noon_restored "$RUNNER_TEMP/seller.dump"
+          docker exec -i "$DB_CONTAINER" pg_restore --exit-on-error -U postgres -d noon_restored < "$RUNNER_TEMP/seller.dump"
           DATABASE_URL=postgresql://noon_ci:ci-only-runtime@127.0.0.1:5432/noon_restored npm run db:migrate
           psql -h 127.0.0.1 -U postgres -d noon_restored -Atc 'SELECT count(*) > 0 FROM quotes' | grep -qx t
       - run: npm run package:extension

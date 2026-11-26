@@ -25,6 +25,9 @@
 
 ## 已运行的验证
 
+- 在 Windows 官方 Chromium 快照 r972738（100.0.4896.0）加载 MV3 构建产物，点击弹窗成功新开独立工作台，登录表单实际渲染。品牌版 Chrome 100、Edge 100 及真实卖家后台注入仍待验证。[Chromium 快照](https://storage.googleapis.com/chromium-browser-snapshots/Win_x64/972738/chrome-win.zip)
+- 完整业务与数据库测试 28 项通过，0 项跳过。
+
 - Chromium 系浏览器的 MV3 构建、扩展类型检查和 ZIP 打包分别通过。Windows Chrome 158.0.8127.88 在独立用户目录中加载扩展，已实测从 popup 打开工作台、登录平台账号、开设租户、预览并保存报价、刷新页面后恢复会话与历史记录。
 - 本机 PostgreSQL 16 使用 NOSUPERUSER / NOBYPASSRLS 角色，从空库部署五组迁移。数据库测试覆盖跨租户读取、会话并发、事件回放、数量确认、仓库超时、报价导出、配额互斥和订阅。
 - HTTP 与本机 S3 兼容服务联调已覆盖上传、后台处理、确认入库、签名下载。实际下载文件经 Sharp 解析为 1200 × 1200、72 PPI 的 JPEG。
