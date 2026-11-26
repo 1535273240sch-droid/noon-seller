@@ -39,18 +39,28 @@ export function Assets({ actor }: { actor: Actor }) {
     [ack, setAck] = useState(false),
     [label, setLabel] = useState(""),
     [rows, setRows] = useState<any[]>([]),
+    [jobs, setJobs] = useState<
+      { id: string; status: string; created_at: string }[]
+    >([]),
     [ids, setIds] = useState<string[]>([]),
     [balance, setBalance] = useState<number | null>(null),
     [job, setJob] = useState<any>(null),
     [preview, setPreview] = useState(""),
     [jobId, setJobId] = useState(() => sessionStorage.getItem(cache) || "");
   const library = async () => {
-    const [a, q] = await Promise.all([api("/assets"), api("/quota")]);
+    const [a, q, j] = await Promise.all([
+      api("/assets"),
+      api("/quota"),
+      api("/image-jobs"),
+    ]);
     setRows(a.data);
+    setJobs(j.data);
     setBalance(q.balance);
   };
   const inspect = async (id: string) => {
     const { job } = await api("/image-jobs/" + id);
+    setJobId(id);
+    sessionStorage.setItem(cache, id);
     setJob(job);
     setPreview(
       ["succeeded_pending_review", "confirmed"].includes(job.status)
@@ -189,6 +199,24 @@ export function Assets({ actor }: { actor: Actor }) {
           )}
         </Panel>
       </div>
+      <Panel
+        title="最近处理任务"
+        extra={<button onClick={() => void task.run(library)}>刷新列表</button>}
+      >
+        {jobs.length ? (
+          jobs.map((item) => (
+            <div className="list-item toolbar" key={item.id}>
+              <span className="badge">{statusText(item.status)}</span>
+              <time>{new Date(item.created_at).toLocaleString()}</time>
+              <button onClick={() => void task.run(() => inspect(item.id))}>
+                查看任务
+              </button>
+            </div>
+          ))
+        ) : (
+          <Empty>暂无处理任务。</Empty>
+        )}
+      </Panel>
       <Panel
         title="素材库"
         extra={

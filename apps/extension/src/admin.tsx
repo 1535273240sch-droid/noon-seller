@@ -179,6 +179,7 @@ export function Accounts() {
           </button>
         )}
       </Panel>
+      {selected && <Sessions key={selected.id} userId={selected.id} />}
       {selected && (
         <Panel
           title={selected.email}
@@ -270,6 +271,61 @@ export function Accounts() {
         </Panel>
       )}
     </>
+  );
+}
+function Sessions({ userId }: { userId: string }) {
+  const task = useTask(),
+    [rows, setRows] = useState<any[]>([]),
+    [cursor, setCursor] = useState("");
+  const load = async (next = "") => {
+    const result = await api(
+      "/admin/users/" +
+        userId +
+        "/sessions" +
+        (next ? "?cursor=" + encodeURIComponent(next) : ""),
+    );
+    setRows((old) => (next ? [...old, ...result.data] : result.data));
+    setCursor(result.next_cursor || "");
+  };
+  useEffect(() => {
+    void task.run(() => load());
+  }, [userId]);
+  return (
+    <Panel title="登录会话">
+      <Feedback task={task} />
+      {rows.length ? (
+        rows.map((s) => (
+          <div className="list-item toolbar" key={s.id}>
+            <span>{new Date(s.created_at).toLocaleString()}</span>
+            <span>
+              {s.revoked_at
+                ? "已撤销"
+                : new Date(s.expires_at).getTime() < Date.now()
+                  ? "已过期"
+                  : "有效"}
+            </span>
+            <button
+              disabled={task.busy || !!s.revoked_at}
+              onClick={() =>
+                void task.run(async () => {
+                  await api("/sessions/" + s.id + "/revoke", "POST", {});
+                  await load();
+                })
+              }
+            >
+              撤销会话
+            </button>
+          </div>
+        ))
+      ) : (
+        <Empty>暂无登录会话。</Empty>
+      )}
+      {cursor && (
+        <button onClick={() => void task.run(() => load(cursor))}>
+          下一页
+        </button>
+      )}
+    </Panel>
   );
 }
 export function Connections({ actor }: { actor: Actor }) {

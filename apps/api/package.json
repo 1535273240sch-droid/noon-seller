@@ -5,7 +5,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "start": "node dist/main.js",
-    "dev": "tsx watch src/main.ts",
+    "dev": "npm run build && node dist/main.js",
     "bootstrap": "tsx src/identity/bootstrap.ts",
     "test": "tsx --test test/*.test.ts",
     "prisma:generate": "prisma generate --schema ../../infra/prisma/schema.prisma",

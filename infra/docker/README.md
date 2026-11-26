@@ -2,6 +2,8 @@
 
 从仓库根目录进入 `infra/docker`。需要 Node.js 22.12+、支持 Linux 容器的 Docker 和 Compose v2。首次启动会构建 API 镜像，并在具名卷中初始化 PostgreSQL 16、Redis 7 和私有对象桶。
 
+对象存储使用 PGSTY 维护的 Silo，服务端与初始化客户端取自同一份已固定摘要的镜像。其 S3 接口支持本项目的私有桶与签名下载，镜像附带的客户端名为 `mcli`。[Silo 发布记录](https://github.com/pgsty/silo/releases/tag/RELEASE.2026-11-12T00-00-00Z)
+
 ```powershell
 cd infra/docker
 node make-env.cjs dev
@@ -35,7 +37,7 @@ try {
   if ($LASTEXITCODE) { throw "数据库备份失败" }
   docker compose cp "db:/tmp/noon-$stamp.dump" "$backupDir/noon.dump"
   if ($LASTEXITCODE) { throw "复制备份失败" }
-  docker compose run --rm --no-deps -v "${backupDir}:/backup" --entrypoint /bin/sh storage-init -ec 'mc alias set src http://storage:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" >/dev/null && mc mirror src/noon-assets /backup/noon-assets'
+  docker compose run --rm --no-deps -v "${backupDir}:/backup" --entrypoint /bin/sh storage-init -ec 'mcli alias set src http://storage:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" >/dev/null && mcli mirror src/noon-assets /backup/noon-assets'
   if ($LASTEXITCODE) { throw "对象备份失败" }
 } finally {
   docker compose start api
@@ -54,7 +56,7 @@ if ($LASTEXITCODE) { throw "恢复失败" }
 docker compose run --rm --no-deps -e "DRILL_DB=$drill" migrate sh -ec 'export DATABASE_URL="${DATABASE_URL%/noon}/$DRILL_DB"; npm run db:migrate'
 if ($LASTEXITCODE) { throw "迁移检查失败" }
 docker compose exec -T db psql -U postgres -d $drill -c 'SELECT count(*) FROM orders'
-docker compose run --rm --no-deps -v "${backupDir}:/backup:ro" -e "DRILL_BUCKET=noon-drill-$stamp" --entrypoint /bin/sh storage-init -ec 'mc alias set dst http://storage:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" >/dev/null && mc mb dst/$DRILL_BUCKET && mc mirror /backup/noon-assets dst/$DRILL_BUCKET && mc diff /backup/noon-assets dst/$DRILL_BUCKET'
+docker compose run --rm --no-deps -v "${backupDir}:/backup:ro" -e "DRILL_BUCKET=noon-drill-$stamp" --entrypoint /bin/sh storage-init -ec 'mcli alias set dst http://storage:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" >/dev/null && mcli mb dst/$DRILL_BUCKET && mcli mirror /backup/noon-assets dst/$DRILL_BUCKET && mcli diff /backup/noon-assets dst/$DRILL_BUCKET'
 ```
 
 恢复验收应对照备份时的租户数、订单数和对象数，抽样读取已审核图片，并测试受限账号的跨租户拒绝结果。Redis 负责任务调度，订单 outbox 与图片租约均在 PostgreSQL 中。按约定的恢复窗口定期演练，并将数据库与对象备份复制到独立位置。

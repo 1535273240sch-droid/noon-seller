@@ -23,6 +23,16 @@
 - 店铺与仓库能力需要来源证明。手动保存能力或密文，只能记录配置。仓库超时后转对账或人工，禁止使用另一个幂等键重投。
 - 当推荐数据源缺失，开发界面标示“模拟数据”；正式环境的验收需要能说明授权范围、采集时间、站点及排名口径的来源。
 
+## 已运行的验证
+
+- Chromium 系浏览器的 MV3 构建、扩展类型检查和 ZIP 打包分别通过。Windows Chrome 158.0.8127.88 在独立用户目录中加载扩展，已实测从 popup 打开工作台、登录平台账号、开设租户、预览并保存报价、刷新页面后恢复会话与历史记录。
+- 本机 PostgreSQL 16 使用 NOSUPERUSER / NOBYPASSRLS 角色，从空库部署五组迁移。数据库测试覆盖跨租户读取、会话并发、事件回放、数量确认、仓库超时、报价导出、配额互斥和订阅。
+- HTTP 与本机 S3 兼容服务联调已覆盖上传、后台处理、确认入库、签名下载。实际下载文件经 Sharp 解析为 1200 × 1200、72 PPI 的 JPEG。
+- 本地开发仓适配器接收 1,000 条人工确认过数量的合成订单行。20 批、每批 50 行，共 1,000 条受理；第一批耗时 1.517 秒，最慢一批 6.286 秒。50 个独立用户同时读取订单列表，P95 为 507 毫秒。批次计时起点是 API 提交，终点是轮询观察到终态。实验使用本机 PostgreSQL 持久队列和开发轮询器，零外部网络履约调用。
+- 仓库 CI 在 Linux 上运行 Redis / BullMQ、PostgreSQL、API 冒烟、备份恢复及 Compose 启动检查。各次提交的运行结果见[持续验证](https://github.com/1535273240sch-droid/noon-seller/actions)。
+
+成本加价模板以税前到岸成本为加价基数。首续重运费卡使用采购币，续重向上取档，展示计费重保留三位。业务方确认这些口径后才能作为正式报价模板。
+
 ## 外部依据
 
 Noon 公开指南描述了按事件中的订单号再取详情、通知可重复投递的流程。列表端点说明以同一过滤条件翻页，每页最多 50 单。实际供应商字段、验签、租户绑定和履约能力需在目标账号上验证。[Noon webhook 指南](https://noon-docs.noonpartners.dev/docs/fbpi/guides/webhook-order-data) · [ListFbpiOrders](https://noon-docs.noonpartners.dev/docs/api-reference/fbpi/fbpi-service-list-fbpi-orders)

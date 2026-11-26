@@ -43,8 +43,8 @@ jobs:
       - run: npm run db:migrate
       - run: npm run check:extension
       - run: npm run build
-      - run: npm test
       - run: npm run bootstrap -w @noon/api
+      - run: npm test
       - name: Verify HTTP workflow with Redis
         run: |
           node apps/api/dist/main.js > "$RUNNER_TEMP/noon-api.log" 2>&1 &
