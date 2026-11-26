@@ -1,0 +1,43 @@
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  width: 276px;
+  font: 14px system-ui;
+  color: #173b37;
+  background: #eef3ed;
+}
+main {
+  padding: 26px;
+}
+.mark {
+  background: #174d42;
+  border-radius: 12px;
+  color: #e4ffab;
+  padding: 8px 11px;
+  font-size: 20px;
+  width: max-content;
+}
+h1 {
+  font-size: 27px;
+  margin: 15px 0 0;
+}
+p {
+  color: #54665d;
+  margin: 4px 0 20px;
+}
+button {
+  width: 100%;
+  padding: 13px 16px;
+  border: 0;
+  border-radius: 8px;
+  background: #174d42;
+  color: white;
+  font: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+span {
+  float: right;
+}

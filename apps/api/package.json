@@ -1,0 +1,38 @@
+{
+  "name": "@noon/api",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/main.js",
+    "dev": "tsx watch src/main.ts",
+    "bootstrap": "tsx src/identity/bootstrap.ts",
+    "test": "tsx --test test/*.test.ts",
+    "prisma:generate": "prisma generate --schema ../../infra/prisma/schema.prisma",
+    "prisma:deploy": "prisma migrate deploy --schema ../../infra/prisma/schema.prisma"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.800.0",
+    "@aws-sdk/s3-request-presigner": "^3.800.0",
+    "@fastify/cors": "^11.0.0",
+    "@nestjs/common": "^11.0.0",
+    "@nestjs/core": "^11.0.0",
+    "@nestjs/platform-fastify": "^11.0.0",
+    "@prisma/client": "~6.19.0",
+    "argon2": "^0.44.0",
+    "bullmq": "^5.58.0",
+    "decimal.js": "^10.5.0",
+    "exceljs": "^4.4.0",
+    "fflate": "^0.8.2",
+    "fastify": "^5.4.0",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.0",
+    "sharp": "^0.34.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.0",
+    "prisma": "~6.19.0",
+    "tsx": "^4.20.0",
+    "typescript": "~5.9.0"
+  }
+}

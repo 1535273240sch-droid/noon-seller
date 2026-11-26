@@ -1,0 +1,58 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Tenant {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  status      String    @default("active")
+  modules     String[]
+  validUntil  DateTime? @map("valid_until") @db.Timestamptz
+  maxSessions Int       @default(2) @map("max_sessions")
+  version     Int       @default(1)
+  users       User[]
+  @@map("tenants")
+}
+
+model User {
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId     String?   @map("tenant_id") @db.Uuid
+  tenant       Tenant?   @relation(fields: [tenantId], references: [id])
+  email        String    @unique
+  passwordHash String?   @map("password_hash")
+  role         String
+  status       String    @default("active")
+  validUntil   DateTime? @map("valid_until") @db.Timestamptz
+  maxSessions  Int       @default(2) @map("max_sessions")
+  deletedAt    DateTime? @map("deleted_at") @db.Timestamptz
+  version      Int       @default(1)
+  grants       UserModuleGrant[]
+  sessions     Session[]
+  @@index([tenantId])
+  @@map("users")
+}
+
+model UserModuleGrant {
+  userId String @map("user_id") @db.Uuid
+  user   User   @relation(fields: [userId], references: [id])
+  module String
+  @@id([userId, module])
+  @@map("user_module_grants")
+}
+
+model Session {
+  id               String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId           String    @map("user_id") @db.Uuid
+  user             User      @relation(fields: [userId], references: [id])
+  tenantId         String?   @map("tenant_id") @db.Uuid
+  refreshTokenHash String    @unique @map("refresh_token_hash")
+  revokedAt        DateTime? @map("revoked_at") @db.Timestamptz
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  expiresAt        DateTime  @map("expires_at") @db.Timestamptz
+  @@index([userId, expiresAt])
+  @@map("sessions")
+}

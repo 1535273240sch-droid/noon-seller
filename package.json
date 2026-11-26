@@ -1,0 +1,20 @@
+{
+  "name": "noon-seller",
+  "version": "0.1.0",
+  "private": true,
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "db:generate": "prisma generate --schema infra/prisma/schema.prisma",
+    "db:migrate": "prisma migrate deploy --schema infra/prisma/schema.prisma",
+    "build": "npm run db:generate && npm run build --workspaces --if-present",
+    "test": "npm test -w @noon/api",
+    "check:extension": "npm run typecheck -w @noon/extension",
+    "start:api": "npm start -w @noon/api",
+    "package:extension": "npm run zip -w @noon/extension"
+  }
+}

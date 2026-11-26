@@ -1,0 +1,98 @@
+name: Verify seller workspace
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 16
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_PASSWORD: ci-only-postgres
+        ports: ['5432:5432']
+        options: --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 15
+      redis:
+        image: redis:7-alpine
+        ports: ['6379:6379']
+        options: --health-cmd "redis-cli ping" --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgresql://noon_ci:ci-only-runtime@127.0.0.1:5432/noon_test
+      TEST_DATABASE_URL: postgresql://noon_ci:ci-only-runtime@127.0.0.1:5432/noon_test
+      REDIS_URL: redis://127.0.0.1:6379
+      JWT_SECRET: ci-only-test-secret-with-at-least-32-bytes
+      APP_ENV: dev
+      NODE_ENV: test
+      PORT: 3100
+      BOOTSTRAP_EMAIL: smoke@example.invalid
+      BOOTSTRAP_PASSWORD: disposable-ci-bootstrap-password
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - name: Create isolated test database
+        env:
+          PGPASSWORD: ci-only-postgres
+        run: |
+          psql -v ON_ERROR_STOP=1 -h 127.0.0.1 -U postgres -c "CREATE ROLE noon_ci LOGIN PASSWORD 'ci-only-runtime' NOSUPERUSER NOBYPASSRLS"
+          psql -v ON_ERROR_STOP=1 -h 127.0.0.1 -U postgres -c 'CREATE DATABASE noon_test OWNER noon_ci'
+      - run: npm ci
+      - run: npm run db:migrate
+      - run: npm run check:extension
+      - run: npm run build
+      - run: npm test
+      - run: npm run bootstrap -w @noon/api
+      - name: Verify HTTP workflow with Redis
+        run: |
+          node apps/api/dist/main.js > "$RUNNER_TEMP/noon-api.log" 2>&1 &
+          api_pid=$!
+          trap 'kill "$api_pid" 2>/dev/null || true' EXIT
+          for i in $(seq 1 24); do
+            if curl -fsS http://127.0.0.1:3100/v1/health; then break; fi
+            sleep 1
+          done
+          node scripts/smoke.mjs || { cat "$RUNNER_TEMP/noon-api.log"; exit 1; }
+      - name: Restore backup into a fresh database
+        env:
+          PGPASSWORD: ci-only-postgres
+        run: |
+          pg_dump -h 127.0.0.1 -U postgres -Fc noon_test -f "$RUNNER_TEMP/seller.dump"
+          createdb -h 127.0.0.1 -U postgres -O noon_ci noon_restored
+          pg_restore --exit-on-error -h 127.0.0.1 -U postgres -d noon_restored "$RUNNER_TEMP/seller.dump"
+          DATABASE_URL=postgresql://noon_ci:ci-only-runtime@127.0.0.1:5432/noon_restored npm run db:migrate
+          psql -h 127.0.0.1 -U postgres -d noon_restored -Atc 'SELECT count(*) > 0 FROM quotes' | grep -qx t
+      - run: npm run package:extension
+      - uses: actions/upload-artifact@v4
+        with:
+          name: noon-seller-extension
+          path: apps/extension/.output/*.zip
+          if-no-files-found: error
+  compose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - name: Start containers and verify local S3 workflow
+        shell: bash
+        run: |
+          node infra/docker/make-env.cjs dev
+          set -a
+          source infra/docker/.env
+          set +a
+          dc() { docker compose --env-file infra/docker/.env -f infra/docker/compose.yaml "$@"; }
+          trap 'dc down -v --remove-orphans' EXIT
+          dc up -d --build --wait api
+          dc run --rm bootstrap
+          SMOKE_S3=1 node scripts/smoke.mjs
+          for stage in staging prod; do
+            APP_ENV="$stage" dc up -d --wait --no-deps api
+            curl -fsS http://127.0.0.1:3100/v1/health
+          done
