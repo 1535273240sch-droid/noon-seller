@@ -70,6 +70,7 @@ jobs:
         with:
           name: noon-seller-extension
           path: apps/extension/.output/*.zip
+          include-hidden-files: true
           if-no-files-found: error
   compose:
     runs-on: ubuntu-latest
